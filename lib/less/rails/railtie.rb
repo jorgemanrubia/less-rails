@@ -1,11 +1,8 @@
+require 'sprockets/railtie'
+
 module Less  
   module Rails
     class Railtie < ::Rails::Railtie
-      
-      module LessContext
-        attr_accessor :less_config
-      end
-      
       config.less = ActiveSupport::OrderedOptions.new
       config.less.paths = []
       config.less.compress = false
@@ -19,9 +16,15 @@ module Less
       end
 
       initializer 'less-rails.before.load_config_initializers', :before => :load_config_initializers, :group => :all do |app|
-        (Sprockets.respond_to?('register_preprocessor') ? Sprockets : app.assets).register_preprocessor 'text/css', ImportProcessor
-        app.assets.context_class.extend(LessContext)
-        app.assets.context_class.less_config = app.config.less
+        app.assets.register_preprocessor 'text/css', ImportProcessor
+        Sprockets.register_preprocessor 'text/css', ImportProcessor if Sprockets.respond_to?('register_preprocessor')
+
+        config.assets.configure do |env|
+          env.context_class.class_eval do
+            class_attribute :less_config
+            self.less_config = app.config.less
+          end
+        end
       end
 
       initializer 'less-rails.after.append_assets_path', :after => :append_assets_path, :group => :all do |app|
@@ -36,4 +39,3 @@ module Less
     end
   end
 end
-
